@@ -6,7 +6,7 @@ from .message import Message
 
 
 class ActionTypes(int, Enum):
-    register_client = 1
+    register_client = auto()
 
 
 @dataclass

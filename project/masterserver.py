@@ -29,8 +29,8 @@ class MasterServer:
         self._port: int = port
         self._buffer_size: int = buffer_size
 
-        self._sock: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._sock.bind((self._host, self._port))
+        self._socket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._socket.bind((self._host, self._port))
 
         self.__receive_actions_thread: Union[threading.Thread, None] = None
         self.__do_actions_thread: Union[threading.Thread, None] = None
@@ -39,7 +39,7 @@ class MasterServer:
         pass
 
     def receive_action_from_clients(self):
-        data, address = self._sock.recvfrom(self._buffer_size)
+        data, address = self._socket.recvfrom(self._buffer_size)
         data = data.decode()
         data = json.loads(data)
         action = Action(**data)
@@ -64,7 +64,7 @@ class MasterServer:
     def _send_ack(self, client_address: Tuple[str, int]):
         ack = Acknowledgement()
         ack = json.dumps(dataclasses.asdict(ack)).encode()
-        self._sock.sendto(ack, client_address)
+        self._socket.sendto(ack, client_address)
 
     def send_all_user_information(self, sender_information: ClientInformation):
         pass

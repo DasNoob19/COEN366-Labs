@@ -18,7 +18,7 @@ class Client:
             master_server_port: int,
             receiver_port: int,
             tcp_sender: ip_address,
-            host: str,
+            host_address: str,
             file_lst: FileLst = None,
             buffer_size: int = 1024
     ):
@@ -30,17 +30,16 @@ class Client:
         self.tcp_sender: ip_address = tcp_sender
         self.file_lst: FileLst = file_lst
 
-        self.host = host
+        self.host_address = host_address
         self.name = socket.gethostname()
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._socket.bind((self.host, self.receiver_port))
+        self._socket.bind((self.host_address, self.receiver_port))
         self._buffer_size = buffer_size
 
         self._acknowledgement_lst: List[Acknowledgement] = []
 
     def _request_master_for_action(self, action: Action):  # Logic for UDP Communication
         action = dataclasses.asdict(action)
-        print(action)
         action = json.dumps(action).encode()
 
         self._socket.sendto(action, self._master_server_information)
@@ -90,7 +89,7 @@ if __name__ == '__main__':
         file_lst=FileLst(),
         tcp_sender=tcp_sender,
         receiver_port=receiver_port,
-        host=host
+        host_address=host
     )
 
     client.register_with_master_server()
