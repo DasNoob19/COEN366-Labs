@@ -1,5 +1,5 @@
+import dataclasses
 import json
-import time
 from typing import List, Tuple, Union
 from dataclasses import dataclass
 from queue import Queue
@@ -9,6 +9,7 @@ import threading
 from utils.client_information import ClientInformation
 from utils.action import Action, ActionTypes
 from utils.message import Message
+from utils.acknowledgement import Acknowledgement
 
 
 @dataclass
@@ -22,15 +23,13 @@ class MasterServer:
     def __init__(self, host: str, port: int, buffer_size: int):
         self.logs: List[(RequestLog, str)]
         self.connected_clients: List[ClientInformation] = []
-        self.action_queue: Queue[Tuple[str, Action]] = Queue()
+        self.action_queue: Queue[Tuple[Tuple[str, int], Action]] = Queue()
 
         self._host: str = host
         self._port: int = port
         self._buffer_size: int = buffer_size
 
         self._sock: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # self._sock.settimeout(0.1)
-        # self._sock.setblocking(False)
         self._sock.bind((self._host, self._port))
 
         self.__receive_actions_thread: Union[threading.Thread, None] = None
@@ -40,14 +39,11 @@ class MasterServer:
         pass
 
     def receive_action_from_clients(self):
-        # try:
         data, address = self._sock.recvfrom(self._buffer_size)
         data = data.decode()
         data = json.loads(data)
         action = Action(**data)
         self.action_queue.put((address, action))
-        # except socket.timeout:
-        #     pass
 
     def do_actions(self):
         if not self.action_queue.empty():
@@ -56,17 +52,21 @@ class MasterServer:
             if action.action_type == ActionTypes.register_client:
                 self.register_client(address=address, action=action)
 
-    def register_client(self, address: str, action: Action):
+    def register_client(self, address: Tuple[str, int], action: Action):
         msg = Message(**action.message)
         data = json.loads(msg.message)
 
         client_information = ClientInformation(**data)
         client_information.ip = address
         self.connected_clients.append(client_information)
-        print(self.connected_clients)
+        self._send_ack(client_information.ip)
+
+    def _send_ack(self, client_address: Tuple[str, int]):
+        ack = Acknowledgement()
+        ack = json.dumps(dataclasses.asdict(ack)).encode()
+        self._sock.sendto(ack, client_address)
 
     def send_all_user_information(self, sender_information: ClientInformation):
-        # self.gather_all_user_information()
         pass
 
     def gather_all_user_information(self):
@@ -98,4 +98,3 @@ if __name__ == '__main__':
     print('Master server online!')
     master_server.start_receive_actions_thread()
     master_server.start_do_actions_thread()
-
