@@ -25,6 +25,6 @@ while 1:
         reply = d[0]
         addr = d[1]
 
-        print('Server reply: ' + str(reply))
+        print('MasterServer reply: ' + str(reply))
     except socket.error as msg:
         print ('Error')

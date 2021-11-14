@@ -14,10 +14,10 @@ except socket.error as msg:
 try:
     s.bind((HOST, PORT))
 except socket.error as msg:
-    print ('Bind Failed. Error code: ' + str(msg[0]) + ' Message ' + msg[1])
+    print('Bind Failed. Error code: ' + str(msg[0]) + ' Message ' + msg[1])
     sys.exit()
 
-print ('Socket bind complete')
+print('Socket bind complete')
 
 while 1:
     d = s.recvfrom(1024)
@@ -30,7 +30,7 @@ while 1:
     message = 'OK...'
     reply = message.encode() + data
 
-    s.sendto(reply,addr)
+    s.sendto(reply, addr)
     print('Message[' + addr[0] + ':' + str(addr[1]) + '] - ' + str(data.strip()))
 
 s.close()
