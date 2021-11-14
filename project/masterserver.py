@@ -48,6 +48,7 @@ class MasterServer:
     def do_actions(self):
         if not self.action_queue.empty():
             address, action = self.action_queue.get()
+            print(f'Got action: {action} from {address}')
 
             if action.action_type == ActionTypes.register_client:
                 self.register_client(address=address, action=action)
@@ -59,6 +60,7 @@ class MasterServer:
         client_information = ClientInformation(**data)
         client_information.ip = address
         self.connected_clients.append(client_information)
+        print(f'Added client: {client_information.ip}')
         self._send_ack(client_information.ip)
 
     def _send_ack(self, client_address: Tuple[str, int]):
