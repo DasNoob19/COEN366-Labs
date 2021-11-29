@@ -2,6 +2,7 @@ import socket
 import sys
 import json
 import threading
+from queue import Queue
 import random
 import logging
 
@@ -18,6 +19,8 @@ requestNumber = random.randint(0, 40_000)
 # - Register
 # - Downloading (part of that is in client) You can still download it if it's not published
 
+work_queue: Queue = Queue()
+
 def send_message_to_client_address(msg: str, client_address: str):
     encoded_msg = msg.encode()
     server_socket.sendto(encoded_msg, client_address)
@@ -31,31 +34,35 @@ def save_client_list(client_list_object):
     with open('client_list.json', 'w') as writer:
         writer.write(json.dumps(client_list_object))
 
-def taskRunner(data_received, request_number):
-    data = data_received[0]
-    client_address = data_received[1]
+def is_this_a_client(client_address):
+    client_list_checker = get_client_list()
+    for key, values in client_list_checker.items():
+        if str(client_address[0]) == values[0]:
+            return True
+    else:
+        return False
 
-    logging.info('Received message from ' + str(client_address))
-
+def do_actions(data, client_address, request_number):
     # pass everything and wait for new data received in line 45
     if not data:
         pass
 
     is_client = False
-    temp = data.decode()
+    action = data.decode()
 
     client_list_checker = get_client_list()
     if client_list_checker:  # if it has stuff inside
-        for key, values in client_list_checker.items():
-            if str(client_address[0]) == values[0]:
-                is_client = True
-                break
+        is_client = is_this_a_client(client_address)
 
-    if temp == 'Sending Connection':
+    if action == 'Sending Connection':
         # Fully works
         send_message_to_client_address('Connected', client_address)
 
-    elif temp == 'REGISTER':
+    elif not is_client:
+        message = 'You are not a client. Please REGISTER before entering other commands'
+        send_message_to_client_address(message, client_address)
+
+    elif action == 'REGISTER':
         send_message_to_client_address(msg='Please enter your username', client_address=client_address)
 
         flag = 0 # Why is this flag here?
@@ -94,7 +101,7 @@ def taskRunner(data_received, request_number):
                     flag2 = flag2 + 1
             flag = flag + 1  # finish loop
 
-    elif temp == 'DE-REGISTER' and is_client == True:
+    elif action == 'DE-REGISTER' and is_client == True:
         client_list_object = get_client_list()
 
         for key, values in client_list_object.items():
@@ -108,9 +115,8 @@ def taskRunner(data_received, request_number):
 
         save_client_list(client_list_object)
 
-    elif temp == 'PUBLISH' and is_client:
-        with open('client_list.json', 'r+') as reader:
-            client_list_object = json.load(reader)
+    elif action == 'PUBLISH' and is_client:
+        client_list_object = get_client_list()
 
         publish_checker = False
 
@@ -137,7 +143,7 @@ def taskRunner(data_received, request_number):
 
         save_client_list(client_list_object)
 
-    elif temp == 'REMOVE' and is_client == True:
+    elif action == 'REMOVE' and is_client == True:
         client_list_object = get_client_list()
 
         remove_checker = False
@@ -169,7 +175,7 @@ def taskRunner(data_received, request_number):
 
         save_client_list(client_list_object)
 
-    elif temp == 'RETRIEVE-ALL' and is_client:
+    elif action == 'RETRIEVE-ALL' and is_client:
         client_list_object = get_client_list()
 
         logging.info('RETRIEVE-ALL RQ: ' + str(request_number))
@@ -178,7 +184,7 @@ def taskRunner(data_received, request_number):
         message = 'RETRIEVE RQ: ' + str(request_number) + ' ' + everyOneInfo
         send_message_to_client_address(message, client_address)
 
-    elif temp == 'RETRIEVE-INFOT' and is_client:
+    elif action == 'RETRIEVE-INFOT' and is_client:
         client_list_object = get_client_list()
 
         message = 'Enter the name of person you would like info on'
@@ -206,7 +212,7 @@ def taskRunner(data_received, request_number):
             request_number = request_number + 1
             send_message_to_client_address(message, client_address)
 
-    elif temp == 'SEARCH-FILE' and is_client == True:
+    elif action == 'SEARCH-FILE' and is_client == True:
         client_list_object = get_client_list()
 
         file_checker = False
@@ -236,7 +242,7 @@ def taskRunner(data_received, request_number):
             message = 'SEARCH-FILE RQ ' + str(request_number) + ' ' + file_info
             send_message_to_client_address(message, client_address)
 
-    elif temp == 'UPDATE' and is_client == True:
+    elif action == 'UPDATE' and is_client == True:
         with open('client_list.json', 'r+') as reader:
             client_list_object = json.load(reader)
 
@@ -299,19 +305,34 @@ def taskRunner(data_received, request_number):
             logging.info(f'UPDATE CONFIRMED RQ: {request_number} Name: {username} IP: {new_ip} UDP: {new_udp} TCP: {new_tcp}')
             send_message_to_client_address(message, client_address)
 
-    elif not is_client:
-        message = 'You are not a client. Please REGISTER before entering other commands'
-        send_message_to_client_address(message, client_address)
-
     else:
         message = 'useless request, send something else'
         send_message_to_client_address(message, client_address)
 
-try:
-    with open('client_list.json', 'r+') as reader:
-        rereader = json.load(reader)
-        print(rereader)
+def taskRunner(data_received, request_number):
+    data = data_received[0]
+    client_address = data_received[1]
 
+    logging.info('Received message from ' + str(client_address))
+    work_queue.put((
+        data, client_address, request_number
+    ))
+
+def action_assigner():
+    while True:
+        if work_queue.qsize() != 0:
+            data, client_address, request_number = work_queue.get()
+            do_actions(data, client_address, request_number)
+
+def task_putter():
+    request_number = 0
+    while True:
+        data_received = server_socket.recvfrom(1024)
+        request_number += 1
+        taskRunner(data_received, request_number)
+
+try:
+    print(get_client_list())
 except FileNotFoundError:
     logging.info('Creating an empty clientlist')
     empty_client_list = {}
@@ -337,11 +358,10 @@ except socket.error as msg:
 
 # Keep receiving data
 try:
-    while 1:
-        data_Received = server_socket.recvfrom(1024)
+    thread_task = threading.Thread(target=task_putter())
+    thread_task.start()
 
-        requestNumber += 1
-        threadTask = threading.Thread(target=taskRunner, args=(data_Received, requestNumber,))
-        threadTask.start()
+    action_thread = threading.Thread(target=action_assigner())
+    action_thread.start()
 except Exception as e:
     server_socket.close()

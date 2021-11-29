@@ -3,19 +3,22 @@ import sys
 import threading
 import datetime
 import random
+import logging
+
+logging.basicConfig(filename='client_log.txt')
 
 print(socket.gethostbyname(socket.gethostname()))  # have tp be inside the directory of the program or else it will be masked
 
-TCPport = input('Enter your TCP Port for File Sharing')
-UDPport = input('Enter your UDP Port')
+tcp_port = input('Enter your TCP Port for File Sharing')
+udp_port = input('Enter your UDP Port')
 
 
 # waits for connection and with a tcp port, and transfer files if needed
 def ConnectWithClient():
-    requestNumber = random.randint(0, 10000)
+    request_number = random.randint(0, 10000)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    server_address = (socket.gethostbyname(socket.gethostname()), int(TCPport))  # 111
+    server_address = (socket.gethostbyname(socket.gethostname()), int(tcp_port))  # 111
     print('Starting up on %s port %s' % server_address)
     sock.bind(server_address)
 
@@ -30,23 +33,15 @@ def ConnectWithClient():
             data = connection.recv(200)
 
             try:
-                currentTime = datetime.datetime.now()
-                with open('clientlog.txt', 'a+') as logfile:
-                    logfile.write(
-                        str(currentTime) + ' DOWNLOAD RQ: ' + str(requestNumber) + ' file name: ' + str(data.decode()))
-                    logfile.write('\n')
-                logfile.close()
+                logging.info('DOWNLOAD RQ: ' + str(request_number) + ' file name: ' + str(data.decode()))
 
                 with open(data.decode(), 'r+') as f:
                     data = f.read().rstrip()
-
                     connection.sendall(data.encode())
-
             except:
-
-                data = 'DOWNLOAD-ERROR RQ: ' + str(requestNumber) + ' Reason: file dont exist'
+                data = 'DOWNLOAD-ERROR RQ: ' + str(request_number) + ' Reason: file doesnt exist'
                 connection.sendall(data.encode())
-                requestNumber = requestNumber + 1
+                request_number = request_number + 1
 
         except socket.error as msg:
             print('Error')
@@ -63,7 +58,7 @@ def ConnectWithServer():
         print('Failed to create socket')
         sys.exit()
 
-    s.bind((client_host, int(UDPport)))
+    s.bind((client_host, int(udp_port)))
 
     serverConnection = True
 
@@ -117,14 +112,10 @@ def ConnectWithServer():
                     s.sendto(msg.encode(), (server_ip, port))
                     d = s.recvfrom(1024)
                     reply = d[0]
-                    s.sendto(TCPport.encode(), (server_ip, port))
+                    s.sendto(tcp_port.encode(), (server_ip, port))
 
                 if reply.decode()[0:3] not in ['THE', 'ent']:
-                    currentTime = datetime.datetime.now()
-                    with open('clientlog.txt', 'a+') as logfile:
-                        logfile.write(str(currentTime) + ' : ' + str(reply))
-                        logfile.write('\n')
-                    logfile.close()
+                    logging.info(reply)
                 print('Server reply: ' + reply.decode())
 
             except socket.error as msg:
@@ -154,20 +145,12 @@ def tempTCP(destination):
             if not data:
                 break
             if data.decode()[0:14] == 'DOWNLOAD-ERROR':
-                currentTime = datetime.datetime.now()
-                with open('clientlog.txt', 'a+') as logfile:
-                    logfile.write(str(currentTime) + data.decode())
-                    logfile.write('\n')
-                logfile.close()
+                logging.info(data.decode())
             elif len(data) < 50:
                 print('last chunk' + data.decode(), ' at index' + str(counter))
                 string = string + data.decode()
                 print('File downloaded')
-                currentTime = datetime.datetime.now()
-                with open('clientlog.txt', 'a+') as logfile:
-                    logfile.write(str(currentTime) + ' DOWNLOADED :' + alert)
-                    logfile.write('\n')
-                logfile.close()
+                logging.info(f'DOWNLOADED : {alert}')
                 stdout = sys.stdout
 
                 try:
