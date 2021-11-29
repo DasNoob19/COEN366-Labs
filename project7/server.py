@@ -188,7 +188,7 @@ def taskRunner(data_received, request_number):
         logging.info('RETRIEVE-INFOT RQ: {request_number} on {message}')
 
         data = data_received[0]
-        nameChecker = False
+        name_checker = False
         for key, values in client_list_object.items():
             if key == data.decode():
                 message = 'RETRIEVE-INFOT RQ: ' + str(request_number) + 'name:' + key + ', ip:' + values[0] + \
@@ -198,12 +198,13 @@ def taskRunner(data_received, request_number):
                     message += ' '
 
                 send_message_to_client_address(message, client_address)
-                nameChecker = True
+                name_checker = True
                 break
-        if nameChecker == False:
+
+        if not name_checker:
             message = 'RETRIEVE-ERROR RQ: ' + str(request_number) + ' Reason : person dont exist'
-            send_message_to_client_address(message, client_address)
             request_number = request_number + 1
+            send_message_to_client_address(message, client_address)
 
     elif temp == 'SEARCH-FILE' and is_client == True:
         client_list_object = get_client_list()
@@ -227,7 +228,7 @@ def taskRunner(data_received, request_number):
                     file_info += 'name:' + key + ', ip: ' + values[0] + ', tcp port: ' + values[2] + '    '
                     file_checker = True
 
-        if file_checker == False:
+        if not file_checker:
             message = ' SEARCH-ERROR RQ : ' + str(request_number) + ' Reason : file does not exist'
             send_message_to_client_address(message, client_address)
 
@@ -288,7 +289,7 @@ def taskRunner(data_received, request_number):
 
         save_client_list(client_list_object)
 
-        if update_checker == False:
+        if not update_checker:
             message = 'UPDATE DENIED RQ: ' + str(request_number) + ' Name: ' + username
             send_message_to_client_address(message, client_address)
         else:
@@ -310,7 +311,8 @@ try:
     with open('client_list.json', 'r+') as reader:
         rereader = json.load(reader)
         print(rereader)
-except:
+
+except FileNotFoundError:
     logging.info('Creating an empty clientlist')
     empty_client_list = {}
     save_client_list(empty_client_list)
