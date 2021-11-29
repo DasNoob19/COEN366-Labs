@@ -1,441 +1,345 @@
 import socket
 import sys
 import json
-import datetime
 import threading
 import random
+import logging
+
+logging.basicConfig(filename='logs.txt')
 
 HOST = '0.0.0.0'
 PORT = 3000
-print('Initialiting server at port the default UDP PORT: ', PORT)
+print('Initializing server at port the default UDP PORT: ', PORT)
 print('IP ADDRESS: ', socket.gethostbyname(socket.gethostname()))
 
-requestNumber = random.randint(0, 40000)
+requestNumber = random.randint(0, 40_000)
 # check if client_list exists, if not create one with empty dictionary inside
+# To fix:
+# - Register
+# - Downloading (part of that is in client) You can still download it if it's not published
 
+def send_message_to_client_address(msg: str, client_address: str):
+    encoded_msg = msg.encode()
+    server_socket.sendto(encoded_msg, client_address)
 
-def taskRunner(data_Received, requestNumber):
-    data = data_Received[0]
-    client_Address = data_Received[1]
+def get_client_list():
+    with open('client_list.json', 'r+') as reader:
+        client_list_checker = json.load(reader)
+    return client_list_checker
 
-    print('Received message from ' + str(client_Address))
+def save_client_list(client_list_object):
+    with open('client_list.json', 'w') as writer:
+        writer.write(json.dumps(client_list_object))
+
+def taskRunner(data_received, request_number):
+    data = data_received[0]
+    client_address = data_received[1]
+
+    logging.info('Received message from ' + str(client_address))
 
     # pass everything and wait for new data received in line 45
     if not data:
         pass
 
-    isClient = False
+    is_client = False
     temp = data.decode()
-    with open('client_list.json', 'r+') as reader:
-        clientlistChcker = json.load(reader)
-    reader.close()
 
-    if clientlistChcker:  # if it has stuff inside
-        for key, values in clientlistChcker.items():
-
-            if str(client_Address[0]) == values[0]:
-                isClient = True
+    client_list_checker = get_client_list()
+    if client_list_checker:  # if it has stuff inside
+        for key, values in client_list_checker.items():
+            if str(client_address[0]) == values[0]:
+                is_client = True
                 break
 
-    reader.close()
-
     if temp == 'Sending Connection':
-        message = 'Connected'
-        reply = message.encode()
-        serverSocket.sendto(reply, client_Address)
+        # Fully works
+        send_message_to_client_address('Connected', client_address)
 
     elif temp == 'REGISTER':
-        message = 'Please enter your username'
+        send_message_to_client_address(msg='Please enter your username', client_address=client_address)
 
-        serverSocket.sendto(message.encode(), client_Address)
-        flag = 0
+        flag = 0 # Why is this flag here?
         while flag < 1:
-            data_Received = serverSocket.recvfrom(1024)
-            data = data_Received[0]
-            client_Address = data_Received[1]
+            data_received = server_socket.recvfrom(1024)
+            data = data_received[0]
+            client_address = data_received[1]
             global name
             name = data.decode()
-            with open('client_list.json', 'r+') as reader:
-                clientlistObject = json.load(reader)
-            yida = clientlistObject
-            reader.close()
-            if name in clientlistObject:
-                message = 'REGISTER-DENIED RQ : ' + str(requestNumber) + ' Reason : ' + name + ' already exist'
-                reply = message.encode()
-                serverSocket.sendto(reply, client_Address)
-                currentTime = datetime.datetime.now()
-                with open('log.txt', 'a+') as logfile:
-                    logfile.write(str(currentTime) + ' : REGISTER-DENIED RQ : ' + str(
-                        requestNumber) + ' Reason : ' + name + ' already exist')
-                    logfile.write('\n')
-                logfile.close()
-                requestNumber = requestNumber + 1
-            else:
-                yida.setdefault(name, [client_Address[0], str(client_Address[1])])
+            client_list_object = get_client_list()
+            yida = client_list_object
 
-                message = 'REGISTERED ' + str(requestNumber)
-                reply = message.encode()
-                serverSocket.sendto(reply, client_Address)
+            if name in client_list_object:
+                message = f'REGISTER-DENIED RQ: {request_number}. Reason: {name} already exists'
+                send_message_to_client_address(message, client_address=client_address)
+                logging.info(message)
+                request_number = request_number + 1
+            else:
+                yida.setdefault(name, [client_address[0], str(client_address[1])])
+
+                message = 'REGISTERED ' + str(request_number)
+                send_message_to_client_address(msg=message, client_address=client_address)
                 flag2 = 0
                 while flag2 < 1:
-                    data_Received = serverSocket.recvfrom(1024)
-                    data = data_Received[0]
+                    data_received = server_socket.recvfrom(1024)
+                    data = data_received[0]
 
-                    tcpport = data.decode()
-                    yida[name].append(tcpport)
+                    tcp_port = data.decode()
+                    yida[name].append(tcp_port)
                     yida[name].append([])
-                    with open('client_list.json', 'w+') as writer:
-                        writer.write(json.dumps(yida))
-                    writer.close()
-                    currentTime = datetime.datetime.now()
-                    with open('log.txt', 'a+') as logfile:
-                        logfile.write(str(currentTime) + ' : ' + name + ' REGISTERED RQ: ' + str(requestNumber))
-                        logfile.write('\n')
-                    logfile.close()
-                    requestNumber = requestNumber + 1
+
+                    save_client_list(yida)
+
+                    logging.info(f'REGISTERED RQ: {request_number}: {name}')
+                    request_number = request_number + 1
                     flag2 = flag2 + 1
             flag = flag + 1  # finish loop
 
-    elif temp == 'DE-REGISTER' and isClient == True:
-        with open('client_list.json', 'r+') as reader:
-            clientlistObject = json.load(reader)
-        reader.close()
+    elif temp == 'DE-REGISTER' and is_client == True:
+        client_list_object = get_client_list()
 
-        for key, values in clientlistObject.items():
+        for key, values in client_list_object.items():
 
-            if str(client_Address[0]) == values[0]:
-                clientlistObject.pop(key)
-                currentTime = datetime.datetime.now()
-                with open('log.txt', 'a+') as logfile:
-                    logfile.write(str(currentTime) + ' : DE-REGISTER RQ: ' + str(requestNumber) + ' Name: ' + key)
-                    logfile.write('\n')
-                logfile.close()
-                message = 'DE-REGISTER RQ: ' + str(requestNumber) + ' Name: ' + key
-
-                reply = message.encode()
-                serverSocket.sendto(reply, client_Address)
+            if str(client_address[0]) == values[0]:
+                client_list_object.pop(key)
+                logging.info(f'DE-REGISTER RQ: {request_number} Name: {key}')
+                message = 'DE-REGISTER RQ: ' + str(request_number) + ' Name: ' + key
+                send_message_to_client_address(msg=message, client_address=client_address)
                 break
 
-        with open('client_list.json', 'w+') as writer:
-            writer.write(json.dumps(clientlistObject))
-        writer.close()
+        save_client_list(client_list_object)
 
-    elif temp == 'PUBLISH' and isClient:
+    elif temp == 'PUBLISH' and is_client:
         with open('client_list.json', 'r+') as reader:
-            clientlistObject = json.load(reader)
-        reader.close()
+            client_list_object = json.load(reader)
 
-        PublishChecker = False
+        publish_checker = False
 
-        for key, values in clientlistObject.items():
+        for key, values in client_list_object.items():
 
-            if str(client_Address[0]) == values[0]:
+            if str(client_address[0]) == values[0]:
                 message = 'Enter the name of the file'
-                reply = message.encode()
-                serverSocket.sendto(reply, client_Address)
-                data_Received = serverSocket.recvfrom(1024)
-                data = data_Received[0]
+                send_message_to_client_address(msg=message, client_address=client_address)
+                data_received = server_socket.recvfrom(1024)
+                data = data_received[0]
 
                 values[3].append(data.decode())
-                currentTime = datetime.datetime.now()
-                with open('log.txt', 'a+') as logfile:
-                    logfile.write(str(currentTime) + ' : PUBLISH RQ : ' + str(
-                        requestNumber) + ' Name : ' + name + ' file : ' + data.decode())
-                    logfile.write('\n')
-                logfile.close()
-                message = ' PUBLISH RQ : ' + str(requestNumber)
-                reply = message.encode()
-                serverSocket.sendto(reply, client_Address)
-                PublishChecker = True
+                logging.info(f'PUBLISH RQ : {request_number} Name : {name} file : {data.decode()}')
+
+                message = ' PUBLISH RQ : {request_number}'
+                send_message_to_client_address(msg = message, client_address=client_address)
+
+                publish_checker = True
                 break
-        if PublishChecker == False:
-            message = ' PUBLISH-DENIED RQ : ' + str(requestNumber)
-            reply = message.encode()
-            serverSocket.sendto(reply, client_Address)
-        with open('client_list.json', 'w+') as writer:
-            writer.write(json.dumps(clientlistObject))
-        writer.close()
 
-    elif temp == 'REMOVE' and isClient == True:
-        with open('client_list.json', 'r+') as reader:
-            clientlistObject = json.load(reader)
-        reader.close()
+        if not publish_checker:
+            message = ' PUBLISH-DENIED RQ : ' + str(request_number)
+            send_message_to_client_address(message, client_address)
 
-        RemoveChecker = False
+        save_client_list(client_list_object)
 
-        for key, values in clientlistObject.items():
+    elif temp == 'REMOVE' and is_client == True:
+        client_list_object = get_client_list()
 
-            if str(client_Address[0]) == values[0]:
+        remove_checker = False
+
+        for key, values in client_list_object.items():
+
+            if str(client_address[0]) == values[0]:
                 message = 'Enter the name of the file to remove'
-                reply = message.encode()
-                serverSocket.sendto(reply, client_Address)
-                data_Received = serverSocket.recvfrom(1024)
-                data = data_Received[0]
+                send_message_to_client_address(message, client_address)
+                data_received = server_socket.recvfrom(1024)
+                data = data_received[0]
 
                 for i in values[3]:
 
                     if i == data.decode():
                         values[3].remove(i)
-                        currentTime = datetime.datetime.now()
-                        with open('log.txt', 'a+') as logfile:
-                            logfile.write(str(currentTime) + ' : REMOVE RQ : ' + str(
-                                requestNumber) + ' Name : ' + name + ' File to removed : ' + data.decode())
-                            logfile.write('\n')
-                        logfile.close()
+                        logging.info(f'REMOVE RQ : {request_number} Name : {name} File to removed : {data.decode()}')
 
-                        message = 'REMOVE RQ : ' + str(requestNumber)
-                        reply = message.encode()
-                        requestNumber = requestNumber + 1
-                        serverSocket.sendto(reply, client_Address)
-                        RemoveChecker = True
+                        message = 'REMOVE RQ : ' + str(request_number)
+                        send_message_to_client_address(message, client_address)
+                        request_number = request_number + 1
+                        remove_checker = True
                         break
-        if RemoveChecker == False:
-            message = 'REMOVE-DENIED RQ : ' + str(requestNumber) + ' REASON : File dont exist'
-            reply = message.encode()
-            requestNumber = requestNumber + 1
-            serverSocket.sendto(reply, client_Address)
-        with open('client_list.json', 'w+') as writer:
-            writer.write(json.dumps(clientlistObject))
-        writer.close()
 
-    elif temp == 'RETRIEVE-ALL' and isClient:
-        with open('client_list.json', 'r+') as reader:
-            clientlistObject = json.load(reader)
+        if not remove_checker:
+            message = 'REMOVE-DENIED RQ : ' + str(request_number) + ' REASON : File dont exist'
+            send_message_to_client_address(message, client_address)
+            request_number += 1
 
-        reader.close()
-        currentTime = datetime.datetime.now()
-        with open('log.txt', 'a+') as logfile:
-            logfile.write(str(currentTime) + ': RETRIEVE-ALL RQ: ' + str(requestNumber))
-            logfile.write('\n')
-        logfile.close()
+        save_client_list(client_list_object)
 
-        everyOneInfo = json.dumps(clientlistObject)
-        reply = 'RETRIEVE RQ: ' + str(requestNumber) + ' ' + everyOneInfo
-        serverSocket.sendto(reply.encode(), client_Address)
+    elif temp == 'RETRIEVE-ALL' and is_client:
+        client_list_object = get_client_list()
 
-    elif temp == 'RETRIEVE-INFOT' and isClient:
-        with open('client_list.json', 'r+') as reader:
-            clientlistObject = json.load(reader)
+        logging.info('RETRIEVE-ALL RQ: ' + str(request_number))
+
+        everyOneInfo = json.dumps(client_list_object)
+        message = 'RETRIEVE RQ: ' + str(request_number) + ' ' + everyOneInfo
+        send_message_to_client_address(message, client_address)
+
+    elif temp == 'RETRIEVE-INFOT' and is_client:
+        client_list_object = get_client_list()
+
         message = 'Enter the name of person you would like info on'
-        reader.close()
-        reply = message.encode()
-        serverSocket.sendto(reply, client_Address)
-        data_Received = serverSocket.recvfrom(1024)
-        currentTime = datetime.datetime.now()
-        with open('log.txt', 'a+') as logfile:
-            logfile.write(str(currentTime) + ': RETRIEVE-INFOT RQ: ' + str(requestNumber) + ' on ' + message)
-            logfile.write('\n')
-        logfile.close()
+        send_message_to_client_address(message, client_address)
 
-        data = data_Received[0]
+        data_received = server_socket.recvfrom(1024)
+        logging.info('RETRIEVE-INFOT RQ: {request_number} on {message}')
+
+        data = data_received[0]
         nameChecker = False
-        for key, values in clientlistObject.items():
+        for key, values in client_list_object.items():
             if key == data.decode():
-                message = 'RETRIEVE-INFOT RQ: ' + str(requestNumber) + 'name:' + key + ', ip:' + values[
-                    0] + ', UDP port:' + values[1] + ', TCP port: ' + values[2] + ', list of files available : '
+                message = 'RETRIEVE-INFOT RQ: ' + str(request_number) + 'name:' + key + ', ip:' + values[0] + \
+                          ', UDP port:' + values[1] + ', TCP port: ' + values[2] + ', list of files available : '
                 for i in values[3]:
                     message += i
                     message += ' '
-                reply = message.encode()
-                serverSocket.sendto(reply, client_Address)
+
+                send_message_to_client_address(message, client_address)
                 nameChecker = True
                 break
         if nameChecker == False:
-            message = 'RETRIEVE-ERROR RQ: ' + str(requestNumber) + ' Reason : person dont exist'
-            reply = message.encode()
-            serverSocket.sendto(reply, client_Address)
-            requestNumber = requestNumber + 1
+            message = 'RETRIEVE-ERROR RQ: ' + str(request_number) + ' Reason : person dont exist'
+            send_message_to_client_address(message, client_address)
+            request_number = request_number + 1
 
-    elif temp == 'SEARCH-FILE' and isClient == True:
-        with open('client_list.json', 'r+') as reader:
-            clientlistObject = json.load(reader)
-        reader.close()
+    elif temp == 'SEARCH-FILE' and is_client == True:
+        client_list_object = get_client_list()
 
-        FileChecker = False
-        fileInfo = ''
+        file_checker = False
+        file_info = ''
+
         message = 'Enter the name of the file to search for'
-        reply = message.encode()
-        currentTime = datetime.datetime.now()
+        send_message_to_client_address(message, client_address)
 
-        serverSocket.sendto(reply, client_Address)
-        data_Received = serverSocket.recvfrom(1024)
-        data = data_Received[0]
-        with open('log.txt', 'a+') as logfile:
-            logfile.write(
-                str(currentTime) + ' : SEARCH-FILE RQ : ' + str(requestNumber) + ' File-name : ' + data.decode())
-            logfile.write('\n')
-        logfile.close()
+        data_received = server_socket.recvfrom(1024)
+        data = data_received[0]
 
-        for key, values in clientlistObject.items():
+        logging.info(f'SEARCH-FILE RQ : {request_number} File-name : {data.decode()}')
+
+        for key, values in client_list_object.items():
 
             for i in values[3]:
 
                 if i == data.decode():
-                    fileInfo += 'name:' + key + ', ip: ' + values[0] + ', tcp port: ' + values[2] + '    '
-                    FileChecker = True
+                    file_info += 'name:' + key + ', ip: ' + values[0] + ', tcp port: ' + values[2] + '    '
+                    file_checker = True
 
-        if FileChecker == False:
-            message = ' SEARCH-ERROR RQ : ' + str(requestNumber) + ' Reason : file does not exist'
-            reply = message.encode()
-            serverSocket.sendto(reply, client_Address)
+        if file_checker == False:
+            message = ' SEARCH-ERROR RQ : ' + str(request_number) + ' Reason : file does not exist'
+            send_message_to_client_address(message, client_address)
 
         else:
-            reply = 'SEARCH-FILE RQ ' + str(requestNumber) + ' ' + fileInfo
-            serverSocket.sendto(reply.encode(), client_Address)
+            message = 'SEARCH-FILE RQ ' + str(request_number) + ' ' + file_info
+            send_message_to_client_address(message, client_address)
 
-    elif temp == 'UPDATE' and isClient == True:
+    elif temp == 'UPDATE' and is_client == True:
         with open('client_list.json', 'r+') as reader:
-            clientlistObject = json.load(reader)
-        reader.close()
-        updateChecker = False
-        for key, values in clientlistObject.items():
+            client_list_object = json.load(reader)
 
-            if str(client_Address[0]) == values[0]:
-                currentTime = datetime.datetime.now()
-                with open('log.txt', 'a+') as logfile:
-                    logfile.write(
-                        str(currentTime) + ' : UPDATE-CONTACT RQ: ' + str(requestNumber) + ' Name: ' + key + ' IP: ' +
-                        values[0] + ' UDP: ' + values[1] + ' TCP:' + values[2])
-                    logfile.write('\n')
-                logfile.close()
+        update_checker = False
+        for key, values in client_list_object.items():
+
+            if str(client_address[0]) == values[0]:
+                logging.info(f'UPDATE-CONTACT RQ: {request_number} Name: {key} IP: {values[0]} UDP: {values[1]} TCP: {values[2]}')
                 username = key  # temp value stored to be used in line 420
-                newIP = values[0]
-                newTCP = values[2]
-                newUDP = values[1]
+                new_ip = values[0]
+                new_tcp = values[2]
+                new_udp = values[1]
                 message = 'enter the new ip address, or enter to skip/REFUSE'
-                reply = message.encode()
-                serverSocket.sendto(reply, client_Address)
-                data_Received = serverSocket.recvfrom(1024)
-                data = data_Received[0]
+                send_message_to_client_address(message, client_address)
+                data_received = server_socket.recvfrom(1024)
+                data = data_received[0]
                 if data.decode() == '':
 
                     message = 'THE ip didnt change enter the new tcp address, or enter to skip/REFUSE'
-                    reply = message.encode()
-                    serverSocket.sendto(reply, client_Address)
+                    send_message_to_client_address(message, client_address)
 
                 else:
                     values[0] = data.decode()
-                    updateChecker = True
+                    update_checker = True
                     message = 'THE ip did changed to' + values[
                         0] + ' enter the new tcp address, or enter to skip/REFUSE'
-                    reply = message.encode()
-                    serverSocket.sendto(reply, client_Address)
-                    newIP = values[0]  # temp value stored to be used
+                    send_message_to_client_address(message, client_address)
+                    new_ip = values[0]  # temp value stored to be used
 
-                data_Received = serverSocket.recvfrom(1024)
-                data = data_Received[0]
+                data_received = server_socket.recvfrom(1024)
+                data = data_received[0]
                 if data.decode() == '':
                     message = 'THE tcp didnt change, enter the new UDP address, or enter to skip/REFUSE'
-                    reply = message.encode()
-                    serverSocket.sendto(reply, client_Address)
+                    send_message_to_client_address(message, client_address)
                 else:
-                    updateChecker = True
+                    update_checker = True
                     values[2] = data.decode()
                     message = 'TCP changed to<' + values[2] + '>, enter the new UDP address, or enter to skip/REFUSE'
-                    reply = message.encode()
-                    serverSocket.sendto(reply, client_Address)
-                    newTCP = values[2]  # temp value stored to be used
+                    send_message_to_client_address(message, client_address)
+                    new_tcp = values[2]  # temp value stored to be used
 
-                data_Received = serverSocket.recvfrom(1024)
-                data = data_Received[0]
+                data_received = server_socket.recvfrom(1024)
+                data = data_received[0]
                 if data.decode() == '':
                     pass
                 else:
-                    updateChecker = True
+                    update_checker = True
                     values[1] = data.decode()
-                    newUDP = values[1]  # temp value stored to be used
+                    new_udp = values[1]  # temp value stored to be used
 
-        with open('client_list.json', 'w+') as writer:
-            writer.write(json.dumps(clientlistObject))
-        writer.close()
+        save_client_list(client_list_object)
 
-        if updateChecker == False:
-            message = 'UPDATE DENIED RQ: ' + str(requestNumber) + ' Name: ' + username
-            reply = message.encode()
-            serverSocket.sendto(reply, client_Address)
+        if update_checker == False:
+            message = 'UPDATE DENIED RQ: ' + str(request_number) + ' Name: ' + username
+            send_message_to_client_address(message, client_address)
         else:
             message = 'UPDATE CONFIRMED RQ: ' + str(
-                requestNumber) + ' Name: ' + username + ' IP: ' + newIP + ' UDP: ' + newUDP + ' TCP:' + newTCP
-            currentTime = datetime.datetime.now()
-            with open('log.txt', 'a+') as logfile:
-                logfile.write(str(currentTime) + ' : UPDATE CONFIRMED RQ: ' + str(
-                    requestNumber) + ' Name: ' + username + ' IP: ' + newIP + ' UDP: ' + newUDP + ' TCP:' + newTCP)
-                logfile.write('\n')
-            logfile.close()
-            reply = message.encode()
-            serverSocket.sendto(reply, client_Address)
+                request_number) + ' Name: ' + username + ' IP: ' + new_ip + ' UDP: ' + new_udp + ' TCP:' + new_tcp
 
-    elif isClient == False:
+            logging.info(f'UPDATE CONFIRMED RQ: {request_number} Name: {username} IP: {new_ip} UDP: {new_udp} TCP: {new_tcp}')
+            send_message_to_client_address(message, client_address)
+
+    elif not is_client:
         message = 'You are not a client. Please REGISTER before entering other commands'
-        reply = message.encode()
-        serverSocket.sendto(reply, client_Address)
+        send_message_to_client_address(message, client_address)
+
     else:
         message = 'useless request, send something else'
-        reply = message.encode()
-        serverSocket.sendto(reply, client_Address)
-    # print('Message[' + client_Address[0] + ':' + str(client_Address[1]) + '] - ' + str(data.strip()))
+        send_message_to_client_address(message, client_address)
 
 try:
     with open('client_list.json', 'r+') as reader:
         rereader = json.load(reader)
         print(rereader)
-    reader.close()
 except:
-    currentTime = datetime.datetime.now()
-    with open('log.txt', 'a+') as logfile:
-        logfile.write(str(currentTime) + ' : Creating an empty clientlist')
-        logfile.write('\n')
-    logfile.close()
-    f6 = {}
-    with open('client_list.json', 'w+') as writer:
-        writer.write(json.dumps(f6))
-    writer.close()
+    logging.info('Creating an empty clientlist')
+    empty_client_list = {}
+    save_client_list(empty_client_list)
 
 # Initialize socket
 try:
-    serverSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    print('Socket created')
-    currentTime = datetime.datetime.now()
-    with open('log.txt', 'a+') as logfile:
-        logfile.write(str(currentTime) + ' : Sucessfully created socket')
-        logfile.write('\n')
-    logfile.close()
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    logging.info('Sucessfully created socket')
 except socket.error as msg:
-    print('Failed to created socket. Error code :' + str(msg[0]) + ' Message ' + msg[1])
-    currentTime = datetime.datetime.now()
-    with open('log.txt', 'a+') as logfile:
-        logfile.write(str(currentTime) + ' : Failed to initialize socket')
-        logfile.write('\n')
-    logfile.close()
+    logging.info(f'Failed to created socket. Error code: {msg[0]} Message: {msg[1]}')
     sys.exit()
 
 # Initialize bind
 try:
-    serverSocket.bind((HOST, PORT))
-    currentTime = datetime.datetime.now()
-    with open('log.txt', 'a+') as logfile:
-        logfile.write(str(currentTime) + ' : Socket bind complete')
-        logfile.write('\n')
-    logfile.close()
+    server_socket.bind((HOST, PORT))
+    logging.info('Socket bind complete')
     print('Socket bind complete')
 except socket.error as msg:
     print('Bind Failed. Error code: ' + str(msg[0]) + ' Message ' + msg[1])
-    currentTime = datetime.datetime.now()
-    with open('log.txt', 'a+') as logfile:
-        logfile.write(str(currentTime) + ' : Socket bind error')
-        logfile.write('\n')
-    logfile.close()
+    logging.info('Socket bind error')
     sys.exit()
 
 # Keep receiving data
-while 1:
+try:
+    while 1:
+        data_Received = server_socket.recvfrom(1024)
 
-    data_Received = serverSocket.recvfrom(1024)
-
-    requestNumber += 1
-    threadTask = threading.Thread(target=taskRunner, args=(data_Received, requestNumber,))
-    threadTask.start()
-
-serverSocket.close()
-
-
+        requestNumber += 1
+        threadTask = threading.Thread(target=taskRunner, args=(data_Received, requestNumber,))
+        threadTask.start()
+except Exception as e:
+    server_socket.close()
