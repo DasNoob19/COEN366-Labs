@@ -77,7 +77,7 @@ class Client:
 
 
 if __name__ == '__main__':
-    master_server_address = '192.168.1.2'
+    master_server_address = 'localhost'
     master_server_port = 8888
     receiver_port = 8889
     tcp_sender = 8787

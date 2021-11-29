@@ -1,0 +1,10 @@
+2021-11-28 18:46:02.954919 : Creating an empty clientlist
+2021-11-28 18:46:02.955920 : Sucessfully created socket
+2021-11-28 18:46:02.955920 : Scoket bind complete
+2021-11-28 18:48:21.079531 : Sucessfully created socket
+2021-11-28 18:49:29.593742 : Terry REGISTERED RQ: 34052
+2021-11-28 19:00:13.130704 : PUBLISH RQ : 34056 Name : Terry file : clientlog.txt
+2021-11-28 19:00:36.330277: RETRIEVE-ALL RQ: 34058
+2021-11-28 19:00:50.651025 : Sucessfully created socket
+2021-11-28 19:01:40.292699 : PUBLISH RQ : 34060 Name : Terry file : info.txt
+2021-11-28 19:02:20.397989: RETRIEVE-ALL RQ: 34063
