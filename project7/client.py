@@ -1,13 +1,10 @@
 import socket
-import multiprocessing
 import sys
-import time
 import threading
 import datetime
 import random
 
-print(socket.gethostbyname(
-    socket.gethostname()))  # have tp be inside the directory of the program or else it will be masked
+print(socket.gethostbyname(socket.gethostname()))  # have tp be inside the directory of the program or else it will be masked
 
 TCPport = input('Enter your TCP Port for File Sharing')
 UDPport = input('Enter your UDP Port')
@@ -71,8 +68,7 @@ def ConnectWithServer():
     serverConnection = True
 
     while 1:
-
-        # options=pyautogui.confirm('Enter option Gfg', buttons =['choice a', 'choice b', 'choice c','choice d'])
+        # Trying to connect to master server
         while serverConnection:
             server_address = ''
             while ":" not in server_address:
