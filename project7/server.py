@@ -21,18 +21,22 @@ requestNumber = random.randint(0, 40_000)
 
 work_queue: Queue = Queue()
 
+
 def send_message_to_client_address(msg: str, client_address: str):
     encoded_msg = msg.encode()
     server_socket.sendto(encoded_msg, client_address)
+
 
 def get_client_list():
     with open('client_list.json', 'r+') as reader:
         client_list_checker = json.load(reader)
     return client_list_checker
 
+
 def save_client_list(client_list_object):
     with open('client_list.json', 'w') as writer:
         writer.write(json.dumps(client_list_object))
+
 
 def is_this_a_client(client_address):
     client_list_checker = get_client_list()
@@ -42,8 +46,12 @@ def is_this_a_client(client_address):
     else:
         return False
 
+
 def do_actions(data, client_address, request_number):
     # pass everything and wait for new data received in line 45
+
+    print('Command Received')
+
     if not data:
         pass
 
@@ -58,14 +66,10 @@ def do_actions(data, client_address, request_number):
         # Fully works
         send_message_to_client_address('Connected', client_address)
 
-    elif not is_client:
-        message = 'You are not a client. Please REGISTER before entering other commands'
-        send_message_to_client_address(message, client_address)
-
     elif action == 'REGISTER':
         send_message_to_client_address(msg='Please enter your username', client_address=client_address)
 
-        flag = 0 # Why is this flag here?
+        flag = 0  # Why is this flag here?
         while flag < 1:
             data_received = server_socket.recvfrom(1024)
             data = data_received[0]
@@ -101,7 +105,7 @@ def do_actions(data, client_address, request_number):
                     flag2 = flag2 + 1
             flag = flag + 1  # finish loop
 
-    elif action == 'DE-REGISTER' and is_client == True:
+    elif action == 'DE-REGISTER' and is_client:
         client_list_object = get_client_list()
 
         for key, values in client_list_object.items():
@@ -132,7 +136,7 @@ def do_actions(data, client_address, request_number):
                 logging.info(f'PUBLISH RQ : {request_number} Name : {name} file : {data.decode()}')
 
                 message = ' PUBLISH RQ : {request_number}'
-                send_message_to_client_address(msg = message, client_address=client_address)
+                send_message_to_client_address(msg=message, client_address=client_address)
 
                 publish_checker = True
                 break
@@ -143,7 +147,7 @@ def do_actions(data, client_address, request_number):
 
         save_client_list(client_list_object)
 
-    elif action == 'REMOVE' and is_client == True:
+    elif action == 'REMOVE' and is_client:
         client_list_object = get_client_list()
 
         remove_checker = False
@@ -212,7 +216,7 @@ def do_actions(data, client_address, request_number):
             request_number = request_number + 1
             send_message_to_client_address(message, client_address)
 
-    elif action == 'SEARCH-FILE' and is_client == True:
+    elif action == 'SEARCH-FILE' and is_client:
         client_list_object = get_client_list()
 
         file_checker = False
@@ -242,7 +246,7 @@ def do_actions(data, client_address, request_number):
             message = 'SEARCH-FILE RQ ' + str(request_number) + ' ' + file_info
             send_message_to_client_address(message, client_address)
 
-    elif action == 'UPDATE' and is_client == True:
+    elif action == 'UPDATE' and is_client:
         with open('client_list.json', 'r+') as reader:
             client_list_object = json.load(reader)
 
@@ -250,7 +254,8 @@ def do_actions(data, client_address, request_number):
         for key, values in client_list_object.items():
 
             if str(client_address[0]) == values[0]:
-                logging.info(f'UPDATE-CONTACT RQ: {request_number} Name: {key} IP: {values[0]} UDP: {values[1]} TCP: {values[2]}')
+                logging.info(
+                    f'UPDATE-CONTACT RQ: {request_number} Name: {key} IP: {values[0]} UDP: {values[1]} TCP: {values[2]}')
                 username = key  # temp value stored to be used in line 420
                 new_ip = values[0]
                 new_tcp = values[2]
@@ -302,12 +307,18 @@ def do_actions(data, client_address, request_number):
             message = 'UPDATE CONFIRMED RQ: ' + str(
                 request_number) + ' Name: ' + username + ' IP: ' + new_ip + ' UDP: ' + new_udp + ' TCP:' + new_tcp
 
-            logging.info(f'UPDATE CONFIRMED RQ: {request_number} Name: {username} IP: {new_ip} UDP: {new_udp} TCP: {new_tcp}')
+            logging.info(
+                f'UPDATE CONFIRMED RQ: {request_number} Name: {username} IP: {new_ip} UDP: {new_udp} TCP: {new_tcp}')
             send_message_to_client_address(message, client_address)
+
+    elif not is_client:
+        message = 'You are not a client. Please REGISTER before entering other commands'
+        send_message_to_client_address(message, client_address)
 
     else:
         message = 'useless request, send something else'
         send_message_to_client_address(message, client_address)
+
 
 def taskRunner(data_received, request_number):
     data = data_received[0]
@@ -318,18 +329,23 @@ def taskRunner(data_received, request_number):
         data, client_address, request_number
     ))
 
+
 def action_assigner():
+    print('Hello Assign')
     while True:
         if work_queue.qsize() != 0:
             data, client_address, request_number = work_queue.get()
             do_actions(data, client_address, request_number)
 
+
 def task_putter():
     request_number = 0
+    print('Hello Task')
     while True:
         data_received = server_socket.recvfrom(1024)
         request_number += 1
         taskRunner(data_received, request_number)
+
 
 try:
     print(get_client_list())
@@ -358,10 +374,15 @@ except socket.error as msg:
 
 # Keep receiving data
 try:
-    thread_task = threading.Thread(target=task_putter())
+    thread_task = threading.Thread(target=task_putter)
+    action_thread = threading.Thread(target=action_assigner)
+
+    action_thread.start()
     thread_task.start()
 
-    action_thread = threading.Thread(target=action_assigner())
-    action_thread.start()
+    action_thread.join()
+    thread_task.join()
+
+
 except Exception as e:
     server_socket.close()
