@@ -35,9 +35,9 @@ while True:
 
                     for i in range(len(texts)):
                         if i != len(texts) - 1:
-                            message = "FILE " + texts[i]
+                            message = "FILE - " + texts[i]
                         else:
-                            message = "FILE-END " + texts[i]
+                            message = "FILE-END - " + texts[i]
                         connection.sendall(message.encode())
 
                     texts.clear()
