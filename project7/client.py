@@ -124,7 +124,7 @@ def ConnectWithServer():
 
         elif msg == "REMOVE":
             filename = input('Enter the name of the file to remove (\'FILENAME\'.txt)')
-
+            msg = msg + ' - ' + filename
             try:
                 s.sendto(msg.encode(), (server_ip, port))
                 d = s.recvfrom(1024)

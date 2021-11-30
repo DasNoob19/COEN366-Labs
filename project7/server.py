@@ -129,22 +129,17 @@ def do_actions(data, client_address, request_number):
 
     elif action == 'REMOVE' and is_client:
         client_list_object = get_client_list()
-
+        removeFile = clientMessage.split(' - ')
         remove_checker = False
 
         for key, values in client_list_object.items():
             if str(client_address[0]) == values[0]:
-                message = 'Enter the name of the file to remove'
-                send_message_to_client_address(message, client_address)
-                data_received = server_socket.recvfrom(1024)
-                data = data_received[0]
-
+                filename = removeFile[1]
                 for i in values[3]:
 
-                    if i == data.decode():
+                    if i == filename:
                         values[3].remove(i)
-                        logging.info(f'REMOVE RQ : {request_number} Name : {name} File to removed : {data.decode()}')
-
+                        logging.info(f'REMOVE RQ : {request_number} Name : {key} File to removed : {filename}')
                         message = 'REMOVE RQ : ' + str(request_number)
                         send_message_to_client_address(message, client_address)
                         request_number = request_number + 1
@@ -154,7 +149,6 @@ def do_actions(data, client_address, request_number):
         if not remove_checker:
             message = 'REMOVE-DENIED RQ : ' + str(request_number) + ' REASON : File dont exist'
             send_message_to_client_address(message, client_address)
-            request_number += 1
 
         save_client_list(client_list_object)
 
