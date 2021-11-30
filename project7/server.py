@@ -50,60 +50,47 @@ def is_this_a_client(client_address):
 def do_actions(data, client_address, request_number):
     # pass everything and wait for new data received in line 45
 
-    print('Command Received')
+    print('Command Received ' + data.decode())
 
     if not data:
         pass
 
     is_client = False
-    action = data.decode()
+    clientMessage = data.decode()
+    action = clientMessage.split()[0]
 
     client_list_checker = get_client_list()
     if client_list_checker:  # if it has stuff inside
         is_client = is_this_a_client(client_address)
 
-    if action == 'Sending Connection':
+    if clientMessage == 'Sending Connection':
         # Fully works
         send_message_to_client_address('Connected', client_address)
 
     elif action == 'REGISTER':
-        send_message_to_client_address(msg='Please enter your username', client_address=client_address)
+        global name
+        messageSplit = clientMessage.split(' - ')
+        name = messageSplit[1]
+        client_list_object = get_client_list()
+        yida = client_list_object
 
-        flag = 0  # Why is this flag here?
-        while flag < 1:
-            data_received = server_socket.recvfrom(1024)
-            data = data_received[0]
-            client_address = data_received[1]
-            global name
-            name = data.decode()
-            client_list_object = get_client_list()
-            yida = client_list_object
+        if name in client_list_object:
+            message = f'REGISTER-DENIED RQ: {request_number}. Reason: {name} already exists'
+            send_message_to_client_address(message, client_address=client_address)
+            logging.info(message)
+        else:
+            yida.setdefault(name, [client_address[0], str(client_address[1])])
 
-            if name in client_list_object:
-                message = f'REGISTER-DENIED RQ: {request_number}. Reason: {name} already exists'
-                send_message_to_client_address(message, client_address=client_address)
-                logging.info(message)
-                request_number = request_number + 1
-            else:
-                yida.setdefault(name, [client_address[0], str(client_address[1])])
+            message = 'REGISTERED ' + str(request_number)
+            send_message_to_client_address(msg=message, client_address=client_address)
 
-                message = 'REGISTERED ' + str(request_number)
-                send_message_to_client_address(msg=message, client_address=client_address)
-                flag2 = 0
-                while flag2 < 1:
-                    data_received = server_socket.recvfrom(1024)
-                    data = data_received[0]
+            tcp_port = messageSplit[2]
+            yida[name].append(tcp_port)
+            yida[name].append([])
 
-                    tcp_port = data.decode()
-                    yida[name].append(tcp_port)
-                    yida[name].append([])
+            save_client_list(yida)
 
-                    save_client_list(yida)
-
-                    logging.info(f'REGISTERED RQ: {request_number}: {name}')
-                    request_number = request_number + 1
-                    flag2 = flag2 + 1
-            flag = flag + 1  # finish loop
+            logging.info(f'REGISTERED RQ: {request_number}: {name}')
 
     elif action == 'DE-REGISTER' and is_client:
         client_list_object = get_client_list()
@@ -309,7 +296,7 @@ def do_actions(data, client_address, request_number):
 
             logging.info(
                 f'UPDATE CONFIRMED RQ: {request_number} Name: {username} IP: {new_ip} UDP: {new_udp} TCP: {new_tcp}')
-            send_message_to_client_address(message, client_address)
+        send_message_to_client_address(message, client_address)
 
     elif not is_client:
         message = 'You are not a client. Please REGISTER before entering other commands'
@@ -331,7 +318,6 @@ def taskRunner(data_received, request_number):
 
 
 def action_assigner():
-    print('Hello Assign')
     while True:
         if work_queue.qsize() != 0:
             data, client_address, request_number = work_queue.get()
@@ -340,7 +326,6 @@ def action_assigner():
 
 def task_putter():
     request_number = 0
-    print('Hello Task')
     while True:
         data_received = server_socket.recvfrom(1024)
         request_number += 1

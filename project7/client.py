@@ -97,6 +97,18 @@ def ConnectWithServer():
                 if len(msg1) < 1:
                     print("No TCP Port has been entered. Please try again. ")
             tempTCP(msg1)
+        elif msg == "REGISTER":
+            username = input('Please enter your username')
+            msg = msg + " - " + username + " - " + tcp_port
+
+            try:
+                s.sendto(msg.encode(),(server_ip, port))
+                d = s.recvfrom(1024)
+                reply = d[0]
+                print('Server reply: ' + reply.decode())
+
+            except socket.error as msg:
+                print('Error')
 
         else:
             try:
@@ -104,15 +116,6 @@ def ConnectWithServer():
 
                 d = s.recvfrom(1024)
                 reply = d[0]
-                addr = d[1]
-
-                if reply.decode() == 'Please enter your username':
-                    msg = input('Enter unique username')
-
-                    s.sendto(msg.encode(), (server_ip, port))
-                    d = s.recvfrom(1024)
-                    reply = d[0]
-                    s.sendto(tcp_port.encode(), (server_ip, port))
 
                 if reply.decode()[0:3] not in ['THE', 'ent']:
                     logging.info(reply)
