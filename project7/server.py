@@ -68,7 +68,6 @@ def do_actions(data, client_address, request_number):
         send_message_to_client_address('Connected', client_address)
 
     elif action == 'REGISTER':
-        global name
         messageSplit = clientMessage.split(' - ')
         name = messageSplit[1]
         client_list_object = get_client_list()
@@ -96,7 +95,6 @@ def do_actions(data, client_address, request_number):
         client_list_object = get_client_list()
 
         for key, values in client_list_object.items():
-
             if str(client_address[0]) == values[0]:
                 client_list_object.pop(key)
                 logging.info(f'DE-REGISTER RQ: {request_number} Name: {key}')
@@ -108,21 +106,16 @@ def do_actions(data, client_address, request_number):
 
     elif action == 'PUBLISH' and is_client:
         client_list_object = get_client_list()
-
         publish_checker = False
+        publishMessage = clientMessage.split(' - ')
 
         for key, values in client_list_object.items():
-
             if str(client_address[0]) == values[0]:
-                message = 'Enter the name of the file'
-                send_message_to_client_address(msg=message, client_address=client_address)
-                data_received = server_socket.recvfrom(1024)
-                data = data_received[0]
+                filename = publishMessage[1]
+                values[3].append(filename)
+                logging.info(f'PUBLISH RQ : {request_number} Name : {key} file : {filename}')
 
-                values[3].append(data.decode())
-                logging.info(f'PUBLISH RQ : {request_number} Name : {name} file : {data.decode()}')
-
-                message = ' PUBLISH RQ : {request_number}'
+                message = f' PUBLISH RQ : {request_number}'
                 send_message_to_client_address(msg=message, client_address=client_address)
 
                 publish_checker = True
@@ -140,7 +133,6 @@ def do_actions(data, client_address, request_number):
         remove_checker = False
 
         for key, values in client_list_object.items():
-
             if str(client_address[0]) == values[0]:
                 message = 'Enter the name of the file to remove'
                 send_message_to_client_address(message, client_address)

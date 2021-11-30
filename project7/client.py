@@ -100,9 +100,33 @@ def ConnectWithServer():
         elif msg == "REGISTER":
             username = input('Please enter your username')
             msg = msg + " - " + username + " - " + tcp_port
-
             try:
                 s.sendto(msg.encode(),(server_ip, port))
+                d = s.recvfrom(1024)
+                reply = d[0]
+                print('Server reply: ' + reply.decode())
+
+            except socket.error as msg:
+                print('Error')
+
+        elif msg == "PUBLISH":
+            file = input('Please enter the name of the file that you wish to publish (\'FILENAME\'.txt)')
+            msg = msg + " - " + file
+
+            try:
+                s.sendto(msg.encode(), (server_ip, port))
+                d = s.recvfrom(1024)
+                reply = d[0]
+                print('Server reply: ' + reply.decode())
+
+            except socket.error as msg:
+                print('Error')
+
+        elif msg == "REMOVE":
+            filename = input('Enter the name of the file to remove (\'FILENAME\'.txt)')
+
+            try:
+                s.sendto(msg.encode(), (server_ip, port))
                 d = s.recvfrom(1024)
                 reply = d[0]
                 print('Server reply: ' + reply.decode())
