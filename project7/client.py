@@ -10,7 +10,7 @@ logging.basicConfig(filename='client_log.txt')
 print(socket.gethostbyname(socket.gethostname()))  # have tp be inside the directory of the program or else it will be masked
 
 tcp_port = input('Enter your TCP Port for File Sharing')
-udp_port = input('Enter your UDP Port')
+udp_port = input('Enter your UDP Port') #Prevent Similar UDP
 
 
 # waits for connection and with a tcp port, and transfer files if needed
@@ -41,7 +41,6 @@ def ConnectWithClient():
             except:
                 data = 'DOWNLOAD-ERROR RQ: ' + str(request_number) + ' Reason: file doesnt exist'
                 connection.sendall(data.encode())
-                request_number = request_number + 1
 
         except socket.error as msg:
             print('Error')
@@ -91,12 +90,24 @@ def ConnectWithServer():
         if not msg:
             msg = ''
         if msg == "DOWNLOAD":
-            msg1 = ''
-            while len(msg1) < 1:
-                msg1 = input('Enter the TCP port of the person holding the file')
-                if len(msg1) < 1:
-                    print("No TCP Port has been entered. Please try again. ")
-            tempTCP(msg1)
+            filename = input('Enter the filename to download')
+            clientAddress = input('Enter the address of the client holding the file')
+            msg = msg + ' - ' + filename + ' - ' + clientAddress
+
+            try:
+                s.sendto(msg.encode(), (server_ip, port))
+                d = s.recvfrom(1024)
+                reply = d[0].decode()
+
+                if reply == "DOWNLOAD":
+                    tempTCP(clientAddress, filename)
+                else:
+                    print(reply)
+
+            except socket.error as msg:
+                print('Error')
+
+
         elif msg == "REGISTER":
             username = input('Please enter your username')
             msg = msg + " - " + username + " - " + tcp_port
@@ -149,39 +160,35 @@ def ConnectWithServer():
                 print('Error')
 
 
-def tempTCP(destination):
+def tempTCP(targetDestination, filename):
     tempsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
 
-        host = input('host?')
-        print(int(destination))
-        server_address = (host, int(destination))
+        destination = targetDestination.split(':')
+        server_address = (destination[0], int(destination[1]))
         tempsock.connect(server_address)
-        alert = input("Enter name of the Text File")
-        while len(alert) < 1:
-            alert = input("you cant just enter nothing you dummy")
-        tempsock.sendall(alert.encode())
+        tempsock.sendall(filename.encode())
 
         counter = 0
         string = ''
 
         while True:
 
-            data = tempsock.recv(50)  # length
+            data = tempsock.recv(200)  # length
 
             if not data:
                 break
             if data.decode()[0:14] == 'DOWNLOAD-ERROR':
                 logging.info(data.decode())
-            elif len(data) < 50:
+            elif len(data) < 200:
                 print('last chunk' + data.decode(), ' at index' + str(counter))
                 string = string + data.decode()
                 print('File downloaded')
-                logging.info(f'DOWNLOADED : {alert}')
+                logging.info(f'DOWNLOADED : {filename}')
                 stdout = sys.stdout
 
                 try:
-                    sys.stdout = open(alert, 'w')
+                    sys.stdout = open(filename, 'w')
                     print(string)
 
                 finally:
@@ -194,14 +201,9 @@ def tempTCP(destination):
                 counter = counter + len(data)
                 string = string + data.decode()
     except:
-
         print('Wrong port, make sure you enter the right port number ')
-
         tempsock.close()
-
-
     finally:
-
         tempsock.close()
 
     # creating multiple processes

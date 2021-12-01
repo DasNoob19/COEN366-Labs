@@ -50,7 +50,7 @@ def is_this_a_client(client_address):
 def do_actions(data, client_address, request_number):
     # pass everything and wait for new data received in line 45
 
-    print('Command Received ' + data.decode())
+    print('Command Received ' + data.decode() + " " + str(client_address))
 
     if not data:
         pass
@@ -168,7 +168,7 @@ def do_actions(data, client_address, request_number):
         send_message_to_client_address(message, client_address)
 
         data_received = server_socket.recvfrom(1024)
-        logging.info('RETRIEVE-INFOT RQ: {request_number} on {message}')
+        logging.info(f'RETRIEVE-INFOT RQ: {request_number} on {message}')
 
         data = data_received[0]
         name_checker = False
@@ -208,15 +208,36 @@ def do_actions(data, client_address, request_number):
             for i in values[3]:
 
                 if i == data.decode():
-                    file_info += 'name:' + key + ', ip: ' + values[0] + ', tcp port: ' + values[2] + '    '
+                    file_info += 'Name:' + key + ', IP: ' + values[0] + ', TCP Port: ' + values[2] + '    '
                     file_checker = True
 
         if not file_checker:
-            message = ' SEARCH-ERROR RQ : ' + str(request_number) + ' Reason : file does not exist'
+            message = ' SEARCH-ERROR RQ : ' + str(request_number) + ' Reason : File does not exist'
             send_message_to_client_address(message, client_address)
 
         else:
             message = 'SEARCH-FILE RQ ' + str(request_number) + ' ' + file_info
+            send_message_to_client_address(message, client_address)
+    elif action == 'DOWNLOAD' and is_client:
+
+        downloadMessage = clientMessage.split(' - ')
+        filename = downloadMessage[1]
+        TCP_Address = downloadMessage[2].split(':')
+        client_list_object = get_client_list()
+        file_checker = False
+        for key, values in client_list_object.items():
+            if values[0] == TCP_Address[0] and values[2] == TCP_Address[1]:
+                for i in values[3]:
+                    if i == filename:
+                        file_checker = True
+
+
+
+        if not file_checker:
+            message = 'DOWNLOAD-ERROR RQ : ' + str(request_number) + ' Reason : File is not published'
+            send_message_to_client_address(message, client_address)
+        else:
+            message = 'DOWNLOAD'
             send_message_to_client_address(message, client_address)
 
     elif action == 'UPDATE' and is_client:
