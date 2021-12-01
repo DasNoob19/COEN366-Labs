@@ -15,15 +15,13 @@ print('IP ADDRESS: ', socket.gethostbyname(socket.gethostname()))
 
 requestNumber = random.randint(0, 40_000)
 # check if client_list exists, if not create one with empty dictionary inside
-# To fix:
-# - Register
-# - Downloading (part of that is in client) You can still download it if it's not published
 
 work_queue: Queue = Queue()
 
 
 def send_message_to_client_address(msg: str, client_address: str):
     encoded_msg = msg.encode()
+    print("Sending to " + str(client_address) + ": " + msg)
     server_socket.sendto(encoded_msg, client_address)
 
 
@@ -50,7 +48,7 @@ def is_this_a_client(client_address):
 def do_actions(data, client_address, request_number):
     # pass everything and wait for new data received in line 45
 
-    print('Command Received ' + data.decode())
+    print('Command Received from ' + str(client_address) + ": " + data.decode())
 
     if not data:
         pass
@@ -136,7 +134,6 @@ def do_actions(data, client_address, request_number):
             if str(client_address[0]) == values[0]:
                 filename = removeFile[1]
                 for i in values[3]:
-
                     if i == filename:
                         values[3].remove(i)
                         logging.info(f'REMOVE RQ : {request_number} Name : {key} File to removed : {filename}')
@@ -164,29 +161,24 @@ def do_actions(data, client_address, request_number):
     elif action == 'RETRIEVE-INFOT' and is_client:
         client_list_object = get_client_list()
 
-        message = 'Enter the name of person you would like info on'
-        send_message_to_client_address(message, client_address)
+        retrieveMessage = clientMessage.split(' - ')
+        name = retrieveMessage[1]
 
-        data_received = server_socket.recvfrom(1024)
-        logging.info('RETRIEVE-INFOT RQ: {request_number} on {message}')
-
-        data = data_received[0]
         name_checker = False
         for key, values in client_list_object.items():
-            if key == data.decode():
-                message = 'RETRIEVE-INFOT RQ: ' + str(request_number) + 'name:' + key + ', ip:' + values[0] + \
-                          ', UDP port:' + values[1] + ', TCP port: ' + values[2] + ', list of files available : '
+            if key == name:
+                message = 'RETRIEVE-INFOT RQ: ' + str(request_number) + ' Name: ' + key + ', IP: ' + values[0] + \
+                          ', UDP port: ' + values[1] + ', TCP Port: ' + values[2] + ', List of files available: '
                 for i in values[3]:
                     message += i
-                    message += ' '
+                    message += ', '
 
                 send_message_to_client_address(message, client_address)
                 name_checker = True
                 break
 
         if not name_checker:
-            message = 'RETRIEVE-ERROR RQ: ' + str(request_number) + ' Reason : person dont exist'
-            request_number = request_number + 1
+            message = 'RETRIEVE-ERROR RQ: ' + str(request_number) + ' Reason : Person does not exist'
             send_message_to_client_address(message, client_address)
 
     elif action == 'SEARCH-FILE' and is_client:
@@ -194,35 +186,48 @@ def do_actions(data, client_address, request_number):
 
         file_checker = False
         file_info = ''
+        searchFileMessage = clientMessage.split(' - ')
+        filename = searchFileMessage[1]
 
-        message = 'Enter the name of the file to search for'
-        send_message_to_client_address(message, client_address)
-
-        data_received = server_socket.recvfrom(1024)
-        data = data_received[0]
-
-        logging.info(f'SEARCH-FILE RQ : {request_number} File-name : {data.decode()}')
+        logging.info(f'SEARCH-FILE RQ : {request_number} File-name : {filename}')
 
         for key, values in client_list_object.items():
-
             for i in values[3]:
-
-                if i == data.decode():
-                    file_info += 'name:' + key + ', ip: ' + values[0] + ', tcp port: ' + values[2] + '    '
+                if i == filename:
+                    file_info += 'Name: ' + key + ', IP: ' + values[0] + ', TCP Port: ' + values[2] + '    '
                     file_checker = True
 
         if not file_checker:
-            message = ' SEARCH-ERROR RQ : ' + str(request_number) + ' Reason : file does not exist'
+            message = ' SEARCH-ERROR RQ : ' + str(request_number) + ' Reason : File does not exist'
             send_message_to_client_address(message, client_address)
 
         else:
             message = 'SEARCH-FILE RQ ' + str(request_number) + ' ' + file_info
             send_message_to_client_address(message, client_address)
 
-    elif action == 'UPDATE' and is_client:
-        with open('client_list.json', 'r+') as reader:
-            client_list_object = json.load(reader)
+    elif action == 'DOWNLOAD' and is_client:
 
+        downloadMessage = clientMessage.split(' - ')
+        filename = downloadMessage[1]
+        TCP_Address = downloadMessage[2].split(':')
+        client_list_object = get_client_list()
+        file_checker = False
+        for key, values in client_list_object.items():
+            if values[0] == TCP_Address[0] and values[2] == TCP_Address[1]:
+                for i in values[3]:
+                    if i == filename:
+                        file_checker = True
+
+        if not file_checker:
+            message = 'DOWNLOAD-ERROR RQ : ' + str(request_number) + ' Reason : File is not published'
+            send_message_to_client_address(message, client_address)
+        else:
+            message = 'DOWNLOAD'
+            send_message_to_client_address(message, client_address)
+
+    elif action == 'UPDATE' and is_client:
+        client_list_object = get_client_list()
+        updateMessage = clientMessage.split(' - ')
         update_checker = False
         for key, values in client_list_object.items():
 
@@ -233,43 +238,17 @@ def do_actions(data, client_address, request_number):
                 new_ip = values[0]
                 new_tcp = values[2]
                 new_udp = values[1]
-                message = 'enter the new ip address, or enter to skip/REFUSE'
-                send_message_to_client_address(message, client_address)
-                data_received = server_socket.recvfrom(1024)
-                data = data_received[0]
-                if data.decode() == '':
 
-                    message = 'THE ip didnt change enter the new tcp address, or enter to skip/REFUSE'
-                    send_message_to_client_address(message, client_address)
-
-                else:
-                    values[0] = data.decode()
-                    update_checker = True
-                    message = 'THE ip did changed to' + values[
-                        0] + ' enter the new tcp address, or enter to skip/REFUSE'
-                    send_message_to_client_address(message, client_address)
-                    new_ip = values[0]  # temp value stored to be used
-
-                data_received = server_socket.recvfrom(1024)
-                data = data_received[0]
-                if data.decode() == '':
-                    message = 'THE tcp didnt change, enter the new UDP address, or enter to skip/REFUSE'
-                    send_message_to_client_address(message, client_address)
-                else:
-                    update_checker = True
-                    values[2] = data.decode()
-                    message = 'TCP changed to<' + values[2] + '>, enter the new UDP address, or enter to skip/REFUSE'
-                    send_message_to_client_address(message, client_address)
-                    new_tcp = values[2]  # temp value stored to be used
-
-                data_received = server_socket.recvfrom(1024)
-                data = data_received[0]
-                if data.decode() == '':
-                    pass
-                else:
-                    update_checker = True
-                    values[1] = data.decode()
-                    new_udp = values[1]  # temp value stored to be used
+                if not updateMessage[1] == '':
+                    values[0] = updateMessage[1]
+                    new_ip = values[0]
+                if not updateMessage[2] == '':
+                    values[1] = updateMessage[2]
+                    new_udp = values[1]
+                if not updateMessage[3] == '':
+                    values[2] = updateMessage[3]
+                    new_tcp = values[2]
+                update_checker = True
 
         save_client_list(client_list_object)
 
@@ -289,7 +268,7 @@ def do_actions(data, client_address, request_number):
         send_message_to_client_address(message, client_address)
 
     else:
-        message = 'useless request, send something else'
+        message = 'This request does not exist'
         send_message_to_client_address(message, client_address)
 
 

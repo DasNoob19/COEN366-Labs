@@ -9,8 +9,13 @@ logging.basicConfig(filename='client_log.txt')
 
 print(socket.gethostbyname(socket.gethostname()))  # have tp be inside the directory of the program or else it will be masked
 
-tcp_port = input('Enter your TCP Port for File Sharing')
-udp_port = input('Enter your UDP Port')
+tcp_port = ''
+while not tcp_port.isnumeric():
+    tcp_port = input('Enter your TCP Port for File Sharing')
+
+udp_port = ''
+while not udp_port.isnumeric() or udp_port == "3000":
+    udp_port = input('Enter your UDP Port')
 
 
 # waits for connection and with a tcp port, and transfer files if needed
@@ -41,7 +46,6 @@ def ConnectWithClient():
             except:
                 data = 'DOWNLOAD-ERROR RQ: ' + str(request_number) + ' Reason: file doesnt exist'
                 connection.sendall(data.encode())
-                request_number = request_number + 1
 
         except socket.error as msg:
             print('Error')
@@ -86,67 +90,50 @@ def ConnectWithServer():
             except socket.error as msg:
                 print('Connection Failed: Please try again')
 
-        msg = input('Enter message to send')
+        msg = ''
+        while len(msg) < 1:
+            msg = input('Enter message to send')
+            if len(msg) < 1:
+                print('ERROR - You cannot send a blank message')
 
-        if not msg:
-            msg = ''
         if msg == "DOWNLOAD":
-            msg1 = ''
-            while len(msg1) < 1:
-                msg1 = input('Enter the TCP port of the person holding the file')
-                if len(msg1) < 1:
-                    print("No TCP Port has been entered. Please try again. ")
-            tempTCP(msg1)
+            filename = input('Enter the filename to download')
+            clientAddress = input('Enter the address of the client holding the file')
+            msg = msg + ' - ' + filename + ' - ' + clientAddress
+
         elif msg == "REGISTER":
             username = input('Please enter your username')
             msg = msg + " - " + username + " - " + tcp_port
-            try:
-                s.sendto(msg.encode(),(server_ip, port))
-                d = s.recvfrom(1024)
-                reply = d[0]
-                print('Server reply: ' + reply.decode())
-
-            except socket.error as msg:
-                print('Error')
-
         elif msg == "PUBLISH":
             file = input('Please enter the name of the file that you wish to publish (\'FILENAME\'.txt)')
             msg = msg + " - " + file
-
-            try:
-                s.sendto(msg.encode(), (server_ip, port))
-                d = s.recvfrom(1024)
-                reply = d[0]
-                print('Server reply: ' + reply.decode())
-
-            except socket.error as msg:
-                print('Error')
-
         elif msg == "REMOVE":
             filename = input('Enter the name of the file to remove (\'FILENAME\'.txt)')
             msg = msg + ' - ' + filename
-            try:
-                s.sendto(msg.encode(), (server_ip, port))
-                d = s.recvfrom(1024)
-                reply = d[0]
-                print('Server reply: ' + reply.decode())
+        elif msg == "RETRIEVE-INFOT":
+            name = input('Enter the name of person that you would like to search for')
+            msg = msg + ' - ' + name
+        elif msg == "SEARCH-FILE":
+            file = input('Please enter the name of the file that you would like to search (\'FILENAME\'.txt)')
+            msg = msg + ' - ' + file
+        elif msg == "UPDATE":
+            newIP = input('Please enter your new IP address or press ENTER to not change your IP')
+            newUDP = input('Please enter your new UDP socket or press ENTER to not change you UDP socket')
+            newTCP = input('Please enter your new TCP socket or press ENTER to not change you TCP socket')
+            msg = msg + ' - ' + newIP + ' - ' + newUDP + ' - ' + newTCP
 
-            except socket.error as msg:
-                print('Error')
+        try:
+            s.sendto(msg.encode(), (server_ip, port))
+            d = s.recvfrom(1024)
+            reply = d[0]
+            if reply.decode()[0:3] not in ['THE', 'ent']:
+                logging.info(reply)
+            if reply == "DOWNLOAD":
+                tempTCP(clientAddress, filename)
 
-        else:
-            try:
-                s.sendto(msg.encode(), (server_ip, port))
-
-                d = s.recvfrom(1024)
-                reply = d[0]
-
-                if reply.decode()[0:3] not in ['THE', 'ent']:
-                    logging.info(reply)
-                print('Server reply: ' + reply.decode())
-
-            except socket.error as msg:
-                print('Error')
+            print('Server reply: ' + reply.decode())
+        except socket.error as msg:
+            print('Error')
 
 
 def tempTCP(destination):
