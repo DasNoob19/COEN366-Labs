@@ -1,13 +1,11 @@
 import socket
 import sys
 import threading
-import datetime
 import random
 import logging
 
 logging.basicConfig(filename='client_log.txt')
-
-print(socket.gethostbyname(socket.gethostname()))  # have tp be inside the directory of the program or else it will be masked
+print(socket.gethostbyname(socket.gethostname()))
 
 tcp_port = ''
 while not tcp_port.isnumeric():
@@ -22,11 +20,10 @@ while not udp_port.isnumeric() or udp_port == "3000":
 def ConnectWithClient():
     request_number = random.randint(0, 10000)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    server_address = (socket.gethostbyname(socket.gethostname()), int(tcp_port))  # 111
+    server_address = (socket.gethostbyname(socket.gethostname()), int(tcp_port)
+                      )  
     print('Starting up on %s port %s' % server_address)
     sock.bind(server_address)
-
     sock.listen(1)
 
     while True:
@@ -38,13 +35,15 @@ def ConnectWithClient():
             data = connection.recv(200)
 
             try:
-                logging.info('DOWNLOAD RQ: ' + str(request_number) + ' file name: ' + str(data.decode()))
+                logging.info('DOWNLOAD RQ: ' + str(request_number) +
+                             ' file name: ' + str(data.decode()))
 
                 with open(data.decode(), 'r+') as f:
                     data = f.read().rstrip()
                     connection.sendall(data.encode())
             except:
-                data = 'DOWNLOAD-ERROR RQ: ' + str(request_number) + ' Reason: file doesnt exist'
+                data = 'DOWNLOAD-ERROR RQ: ' + str(
+                    request_number) + ' Reason: file doesnt exist'
                 connection.sendall(data.encode())
 
         except socket.error as msg:
@@ -71,9 +70,13 @@ def ConnectWithServer():
         while serverConnection:
             server_address = ''
             while ":" not in server_address:
-                server_address = input('Enter the server address of the UDP (Format: \'IP address\':\'UDP Port\')')
+                server_address = input(
+                    'Enter the server address of the UDP (Format: \'IP address\':\'SERVER Port\')'
+                )
                 if ":" not in server_address:
-                    print('ERROR - The address must in the format \'IP address\':\'UDP Port\'')
+                    print(
+                        'ERROR - The address must in the format \'IP address\':\'UDP Port\''
+                    )
 
             server_ip = server_address.split(":")[0]
             port = int(server_address.split(":")[1])
@@ -96,44 +99,119 @@ def ConnectWithServer():
             if len(msg) < 1:
                 print('ERROR - You cannot send a blank message')
 
-        if msg == "DOWNLOAD":
-            filename = input('Enter the filename to download')
-            clientAddress = input('Enter the address of the client holding the file')
-            msg = msg + ' - ' + filename + ' - ' + clientAddress
+        if msg == "SECRET":
 
-        elif msg == "REGISTER":
-            username = input('Please enter your username')
-            msg = msg + " - " + username + " - " + tcp_port
-        elif msg == "PUBLISH":
-            file = input('Please enter the name of the file that you wish to publish (\'FILENAME\'.txt)')
-            msg = msg + " - " + file
-        elif msg == "REMOVE":
-            filename = input('Enter the name of the file to remove (\'FILENAME\'.txt)')
-            msg = msg + ' - ' + filename
-        elif msg == "RETRIEVE-INFOT":
-            name = input('Enter the name of person that you would like to search for')
-            msg = msg + ' - ' + name
-        elif msg == "SEARCH-FILE":
-            file = input('Please enter the name of the file that you would like to search (\'FILENAME\'.txt)')
-            msg = msg + ' - ' + file
-        elif msg == "UPDATE":
-            newIP = input('Please enter your new IP address or press ENTER to not change your IP')
-            newUDP = input('Please enter your new UDP socket or press ENTER to not change you UDP socket')
-            newTCP = input('Please enter your new TCP socket or press ENTER to not change you TCP socket')
-            msg = msg + ' - ' + newIP + ' - ' + newUDP + ' - ' + newTCP
-
-        try:
             s.sendto(msg.encode(), (server_ip, port))
-            d = s.recvfrom(1024)
-            reply = d[0]
-            if reply.decode()[0:3] not in ['THE', 'ent']:
-                logging.info(reply)
-            if reply == "DOWNLOAD":
-                tempTCP(clientAddress, filename)
+            tempImgSocket()
+        if msg == "SECRET1":
 
-            print('Server reply: ' + reply.decode())
-        except socket.error as msg:
-            print('Error')
+            s.sendto(msg.encode(), (server_ip, port))
+            tempImgSocket1()
+        else:
+            if msg == "DOWNLOAD":
+                filename = input('Enter the filename to download')
+                clientAddress = input(
+                    'Enter the address of the client holding the file')
+                msg = msg + ' - ' + filename + ' - ' + clientAddress
+
+            elif msg == "REGISTER":
+                username = input('Please enter your username')
+                msg = msg + " - " + username + " - " + tcp_port
+            elif msg == "PUBLISH":
+                file = input(
+                    'Please enter the name of the file that you wish to publish (\'FILENAME\'.txt)'
+                )
+                msg = msg + " - " + file
+            elif msg == "REMOVE":
+                filename = input(
+                    'Enter the name of the file to remove (\'FILENAME\'.txt)')
+                msg = msg + ' - ' + filename
+            elif msg == "RETRIEVE-INFOT":
+                name = input(
+                    'Enter the name of person that you would like to search for'
+                )
+                msg = msg + ' - ' + name
+            elif msg == "SEARCH-FILE":
+                file = input(
+                    'Please enter the name of the file that you would like to search (\'FILENAME\'.txt)'
+                )
+                msg = msg + ' - ' + file
+            elif msg == "UPDATE":
+                newIP = input(
+                    'Please enter your new IP address or press ENTER to not change your IP'
+                )
+                newUDP = input(
+                    'Please enter your new UDP socket or press ENTER to not change you UDP socket'
+                )
+                newTCP = input(
+                    'Please enter your new TCP socket or press ENTER to not change you TCP socket'
+                )
+                msg = msg + ' - ' + newIP + ' - ' + newUDP + ' - ' + newTCP
+
+            try:
+                s.sendto(msg.encode(), (server_ip, port))
+                d = s.recvfrom(1024)
+                reply = d[0]
+                if reply.decode()[0:3] not in ['THE', 'ent']:
+                    logging.info(reply)
+                if reply == "DOWNLOAD":
+                    tempTCP(clientAddress, filename)
+
+                print('Server reply: ' + reply.decode())
+            except socket.error as msg:
+                print('Error')
+
+
+def tempImgSocket():
+    try:
+        #temporary wait to receive a image
+        server = socket.socket(
+            socket.AF_INET,
+            socket.SOCK_STREAM)  # AF_INET = IP, SOCK_STREAM = TCP
+        server.bind(('localhost', 69))  #number that is never used
+        server.listen()
+
+        client_socket, client_address = server.accept()
+
+        file = open('Secret.jpg', "wb")
+        image_chunk = client_socket.recv(2048)  # stream-based protocol
+
+        while image_chunk:
+            file.write(image_chunk)
+            image_chunk = client_socket.recv(2048)
+    except server.error as msg:
+        print('Error')
+
+    finally:
+        print('Obtained secret')
+        file.close()
+        client_socket.close()
+
+
+def tempImgSocket1():
+    try:
+        #temporary wait to receive a image
+        server = socket.socket(
+            socket.AF_INET,
+            socket.SOCK_STREAM)  # AF_INET = IP, SOCK_STREAM = TCP
+        server.bind(('localhost', 69))  #number the prof will never guess
+        server.listen()
+
+        client_socket, client_address = server.accept()
+
+        file = open('Secret1.jpg', "wb")
+        image_chunk = client_socket.recv(2048)  # stream-based protocol
+
+        while image_chunk:
+            file.write(image_chunk)
+            image_chunk = client_socket.recv(2048)
+    except server.error as msg:
+        print('Error')
+
+    finally:
+        print('Obtained secret')
+        file.close()
+        client_socket.close()
 
 
 def tempTCP(destination):
@@ -154,7 +232,7 @@ def tempTCP(destination):
 
         while True:
 
-            data = tempsock.recv(50)  # length
+            data = tempsock.recv(200)  
 
             if not data:
                 break
@@ -183,15 +261,14 @@ def tempTCP(destination):
     except:
 
         print('Wrong port, make sure you enter the right port number ')
-
         tempsock.close()
-
 
     finally:
 
         tempsock.close()
 
-    # creating multiple processes
+
+# creating multiple processes
 
 
 proc1 = threading.Thread(target=ConnectWithServer)

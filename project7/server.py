@@ -46,9 +46,9 @@ def is_this_a_client(client_address):
 
 
 def do_actions(data, client_address, request_number):
-    # pass everything and wait for new data received in line 45
 
-    print('Command Received from ' + str(client_address) + ": " + data.decode())
+    print('Command Received from ' + str(client_address) + ": " +
+          data.decode())
 
     if not data:
         pass
@@ -58,11 +58,11 @@ def do_actions(data, client_address, request_number):
     action = clientMessage.split()[0]
 
     client_list_checker = get_client_list()
-    if client_list_checker:  # if it has stuff inside
+    if client_list_checker:
         is_client = is_this_a_client(client_address)
 
     if clientMessage == 'Sending Connection':
-        # Fully works
+
         send_message_to_client_address('Connected', client_address)
 
     elif action == 'REGISTER':
@@ -73,13 +73,15 @@ def do_actions(data, client_address, request_number):
 
         if name in client_list_object:
             message = f'REGISTER-DENIED RQ: {request_number}. Reason: {name} already exists'
-            send_message_to_client_address(message, client_address=client_address)
+            send_message_to_client_address(message,
+                                           client_address=client_address)
             logging.info(message)
         else:
             yida.setdefault(name, [client_address[0], str(client_address[1])])
 
             message = 'REGISTERED ' + str(request_number)
-            send_message_to_client_address(msg=message, client_address=client_address)
+            send_message_to_client_address(msg=message,
+                                           client_address=client_address)
 
             tcp_port = messageSplit[2]
             yida[name].append(tcp_port)
@@ -89,6 +91,13 @@ def do_actions(data, client_address, request_number):
 
             logging.info(f'REGISTERED RQ: {request_number}: {name}')
 
+    elif action == 'SECRET' and is_client:
+
+        tempZinedine(client_address[0], 69)
+    elif action == 'SECRET1' and is_client:
+
+        tempZinedine1(client_address[0], 69)
+
     elif action == 'DE-REGISTER' and is_client:
         client_list_object = get_client_list()
 
@@ -96,8 +105,10 @@ def do_actions(data, client_address, request_number):
             if str(client_address[0]) == values[0]:
                 client_list_object.pop(key)
                 logging.info(f'DE-REGISTER RQ: {request_number} Name: {key}')
-                message = 'DE-REGISTER RQ: ' + str(request_number) + ' Name: ' + key
-                send_message_to_client_address(msg=message, client_address=client_address)
+                message = 'DE-REGISTER RQ: ' + str(
+                    request_number) + ' Name: ' + key
+                send_message_to_client_address(msg=message,
+                                               client_address=client_address)
                 break
 
         save_client_list(client_list_object)
@@ -111,10 +122,13 @@ def do_actions(data, client_address, request_number):
             if str(client_address[0]) == values[0]:
                 filename = publishMessage[1]
                 values[3].append(filename)
-                logging.info(f'PUBLISH RQ : {request_number} Name : {key} file : {filename}')
+                logging.info(
+                    f'PUBLISH RQ : {request_number} Name : {key} file : {filename}'
+                )
 
                 message = f' PUBLISH RQ : {request_number}'
-                send_message_to_client_address(msg=message, client_address=client_address)
+                send_message_to_client_address(msg=message,
+                                               client_address=client_address)
 
                 publish_checker = True
                 break
@@ -136,7 +150,9 @@ def do_actions(data, client_address, request_number):
                 for i in values[3]:
                     if i == filename:
                         values[3].remove(i)
-                        logging.info(f'REMOVE RQ : {request_number} Name : {key} File to removed : {filename}')
+                        logging.info(
+                            f'REMOVE RQ : {request_number} Name : {key} File to removed : {filename}'
+                        )
                         message = 'REMOVE RQ : ' + str(request_number)
                         send_message_to_client_address(message, client_address)
                         request_number = request_number + 1
@@ -144,7 +160,8 @@ def do_actions(data, client_address, request_number):
                         break
 
         if not remove_checker:
-            message = 'REMOVE-DENIED RQ : ' + str(request_number) + ' REASON : File dont exist'
+            message = 'REMOVE-DENIED RQ : ' + str(
+                request_number) + ' REASON : File dont exist'
             send_message_to_client_address(message, client_address)
 
         save_client_list(client_list_object)
@@ -178,7 +195,8 @@ def do_actions(data, client_address, request_number):
                 break
 
         if not name_checker:
-            message = 'RETRIEVE-ERROR RQ: ' + str(request_number) + ' Reason : Person does not exist'
+            message = 'RETRIEVE-ERROR RQ: ' + str(
+                request_number) + ' Reason : Person does not exist'
             send_message_to_client_address(message, client_address)
 
     elif action == 'SEARCH-FILE' and is_client:
@@ -189,16 +207,19 @@ def do_actions(data, client_address, request_number):
         searchFileMessage = clientMessage.split(' - ')
         filename = searchFileMessage[1]
 
-        logging.info(f'SEARCH-FILE RQ : {request_number} File-name : {filename}')
+        logging.info(
+            f'SEARCH-FILE RQ : {request_number} File-name : {filename}')
 
         for key, values in client_list_object.items():
             for i in values[3]:
                 if i == filename:
-                    file_info += 'Name: ' + key + ', IP: ' + values[0] + ', TCP Port: ' + values[2] + '    '
+                    file_info += 'Name: ' + key + ', IP: ' + values[
+                        0] + ', TCP Port: ' + values[2] + '    '
                     file_checker = True
 
         if not file_checker:
-            message = ' SEARCH-ERROR RQ : ' + str(request_number) + ' Reason : File does not exist'
+            message = ' SEARCH-ERROR RQ : ' + str(
+                request_number) + ' Reason : File does not exist'
             send_message_to_client_address(message, client_address)
 
         else:
@@ -219,7 +240,8 @@ def do_actions(data, client_address, request_number):
                         file_checker = True
 
         if not file_checker:
-            message = 'DOWNLOAD-ERROR RQ : ' + str(request_number) + ' Reason : File is not published'
+            message = 'DOWNLOAD-ERROR RQ : ' + str(
+                request_number) + ' Reason : File is not published'
             send_message_to_client_address(message, client_address)
         else:
             message = 'DOWNLOAD'
@@ -233,7 +255,8 @@ def do_actions(data, client_address, request_number):
 
             if str(client_address[0]) == values[0]:
                 logging.info(
-                    f'UPDATE-CONTACT RQ: {request_number} Name: {key} IP: {values[0]} UDP: {values[1]} TCP: {values[2]}')
+                    f'UPDATE-CONTACT RQ: {request_number} Name: {key} IP: {values[0]} UDP: {values[1]} TCP: {values[2]}'
+                )
                 username = key  # temp value stored to be used in line 420
                 new_ip = values[0]
                 new_tcp = values[2]
@@ -253,14 +276,17 @@ def do_actions(data, client_address, request_number):
         save_client_list(client_list_object)
 
         if not update_checker:
-            message = 'UPDATE DENIED RQ: ' + str(request_number) + ' Name: ' + username
+            message = 'UPDATE DENIED RQ: ' + str(
+                request_number) + ' Name: ' + username
             send_message_to_client_address(message, client_address)
         else:
             message = 'UPDATE CONFIRMED RQ: ' + str(
-                request_number) + ' Name: ' + username + ' IP: ' + new_ip + ' UDP: ' + new_udp + ' TCP:' + new_tcp
+                request_number
+            ) + ' Name: ' + username + ' IP: ' + new_ip + ' UDP: ' + new_udp + ' TCP:' + new_tcp
 
             logging.info(
-                f'UPDATE CONFIRMED RQ: {request_number} Name: {username} IP: {new_ip} UDP: {new_udp} TCP: {new_tcp}')
+                f'UPDATE CONFIRMED RQ: {request_number} Name: {username} IP: {new_ip} UDP: {new_udp} TCP: {new_tcp}'
+            )
         send_message_to_client_address(message, client_address)
 
     elif not is_client:
@@ -277,9 +303,7 @@ def taskRunner(data_received, request_number):
     client_address = data_received[1]
 
     logging.info('Received message from ' + str(client_address))
-    work_queue.put((
-        data, client_address, request_number
-    ))
+    work_queue.put((data, client_address, request_number))
 
 
 def action_assigner():
@@ -287,6 +311,42 @@ def action_assigner():
         if work_queue.qsize() != 0:
             data, client_address, request_number = work_queue.get()
             do_actions(data, client_address, request_number)
+
+
+def tempZinedine(host, destination):
+    tempsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        server_address = (host, int(destination))
+        tempsock.connect(server_address)
+        file = open('zidane.jpg', 'rb')
+        image_data = file.read(2048)
+
+        while image_data:
+            tempsock.send(image_data)
+            image_data = file.read(2048)
+    except:
+        print('Sorry you did not get the secret picture')
+        tempsock.close()
+    finally:
+        tempsock.close()
+
+
+def tempZinedine1(host, destination):
+    tempsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        server_address = (host, int(destination))
+        tempsock.connect(server_address)
+        file = open('zizou.jpg', 'rb')
+        image_data = file.read(2048)
+
+        while image_data:
+            tempsock.send(image_data)
+            image_data = file.read(2048)
+    except:
+        print('Sorry you did not get the secret picture')
+        tempsock.close()
+    finally:
+        tempsock.close()
 
 
 def task_putter():
@@ -309,7 +369,8 @@ try:
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     logging.info('Sucessfully created socket')
 except socket.error as msg:
-    logging.info(f'Failed to created socket. Error code: {msg[0]} Message: {msg[1]}')
+    logging.info(
+        f'Failed to created socket. Error code: {msg[0]} Message: {msg[1]}')
     sys.exit()
 
 # Initialize bind
@@ -332,7 +393,6 @@ try:
 
     action_thread.join()
     thread_task.join()
-
 
 except Exception as e:
     server_socket.close()
